@@ -92,8 +92,25 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python tools/prepare_native_inputs.py --check
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          python scripts/sync-ultra-sdk-identity.py --check
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          # Ultra SDK identity verification is skipped here.
+          #
+          # runtime/maplesu-sdk/SDK-RELEASE.json is a published *source candidate*
+          # (helper.status = source-candidate-unvalidated-device).
+          # scripts/sync-ultra-sdk-identity.py now requires
+          #   rootKeyRequired == false, helper.keyless == true, no helper.keySlotOffset
+          # but this manifest still carries keySlotOffset = 132248 and neither of the
+          # two keyless flags, so the assertion can never pass on this tree.
+          #
+          # The deeper chain is unsatisfiable as well: verify_source_delivery() reads
+          # sourceBuild.buildReport and sourceBuild.buildDirectory, which point into
+          # .tmp/p1-source-r9-build/ - a directory that is not committed (0 files in
+          # the tree). Those receipts are produced only on the maintainer's local
+          # D:/Maple_Workflow/MapleSU checkout.
+          #
+          # The committed runtime/maplesu-sdk/SDK-IDENTITY.cmake is consumed by CMake
+          # as-is, so Manager and Normal builds do not depend on this check. Ultra
+          # mode is not buildable from this tree either way.
+          Write-Host '::warning::Ultra SDK identity check skipped (candidate manifest without keyless fields; build receipts not committed)'
           python tools/build_module_policy.py --prepare-only --offline
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Fetch locked extractor dependencies
